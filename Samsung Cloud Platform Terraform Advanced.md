@@ -2817,6 +2817,11 @@ resource "samsungcloudplatformv2_mariadb_cluster" "my_mariadb" {
       role_type   = "OS"
       size_gb     = var.mariadb_storage_size
       volume_type = "SSD"
+    },
+    {
+      role_type   = "DATA"
+      size_gb     = 16
+      volume_type = "SSD"
     }]
   }]
 
