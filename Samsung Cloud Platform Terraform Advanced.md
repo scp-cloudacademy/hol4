@@ -191,6 +191,7 @@ Terraform이 코드를 실제 인프라로 변환하는 과정을 단계별로 �
 - 서비스 → Networking → VPC → `[VPC 생성]`
 ##### 2. 입력 정보
 - VPC명 : `vpc-webide-hol4`
+- Availability Zone: `Public Zone`
 - IP 대역 : `192.168.0.0/16`
 
 #### 2.3.2 IGW 생성
@@ -216,6 +217,8 @@ VPC 내부에 VM과 같은 리소스들이 실제로 배치될 네트워크 영�
 ##### 2. 입력 정보
 - Subnet 유형: General
 - VPC: `vpc-webide-hol4`
+- Subnet 유형: `Public`
+- Subnet 구분: `Primary`
 - Subnet명: `pubsubhol4`
 - IP 대역: `192.168.0.0/24`
 
@@ -311,13 +314,16 @@ VM에 직접 적용되는 가상 방화벽입니다. 더욱 세분화된 접근 
 - 서비스 → Compute → Virtual Server → `[Virtual Server 생성]`
 
 ##### 2. 입력 정보
-- 이미지 선택: Custom : `ubuntu 24.04`
+- 이미지 선택: 표준: `ubuntu 24.04`
 - 서비스 정보 입력
   - 서버 수: `1`
   - 상품 유형:
     - 서버타입: `Standard-1/s1v1m2(vCPU 1 | Memory 2G)`
   - Block Storage:
-    - 기본 OS: `6` Units
+    - 타입: `SSD_Provisioned`
+    - 기본 OS: `6 Units`
+    - Max IOPS: `5000 IOPS`
+    - Max Throughput: `250 MB/s`
   - 필수 정보 입력
     - 서버명 : `web-ide`
     - 네트워크 설정:
