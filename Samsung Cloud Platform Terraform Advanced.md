@@ -215,7 +215,6 @@ VPC 내부에 VM과 같은 리소스들이 실제로 배치될 네트워크 영�
 - 서비스 → Networking → VPC → Subnet → `[Subnet 생성]`
 
 ##### 2. 입력 정보
-- Subnet 유형: General
 - VPC: `vpc-webide-hol4`
 - Subnet 유형: `Public`
 - Subnet 구분: `Primary`
@@ -1969,7 +1968,7 @@ output "created_vpc_id" {
 | `subnet_cidrs` | `map(string)` | `(lb, k8s, db 맵)` | 각 용도별 서브넷 CIDR 맵 |
 | `lb_cidr` | `string` | `"192.168.150.0/27"` | 로드밸런서용 CIDR 블록 |
 | `vpc_wait_time` | `string` | `"30s"` | VPC 생성 후 대기 시간 |
-| `kubernetes_version` | `string` | `"v1.31.8"` | SKE 클러스터 버전 |
+| `kubernetes_version` | `string` | `"v1.32.8"` | SKE 클러스터 버전 |
 
 `variables.tf` 파일을 생성하고 아래 내용을 작성합니다.
 
@@ -2024,7 +2023,7 @@ variable "vpc_wait_time" {
 variable "kubernetes_version" {
   description = "SKE 클러스터 버전"
   type        = string
-  default     = "v1.31.8"
+  default     = "v1.32.8"
 }
 ```
 
@@ -3365,12 +3364,12 @@ Setting up mariadb-client-10.6 (1:10.6.7-0ubuntu0.22.04.1) ...
 Terraform 출력에서 확인한 MariaDB 가상 IP(Virtual IP)를 사용하여 데이터베이스에 접속합니다:
 
 ```bash
-mysql -h <mariadb_virtual_ip> -P 2866 -u dbadmin -p
+mariadb -h <mariadb_virtual_ip> -P 2866 -u dbadmin -p --skip-ssl
 ```
 
 예시:
 ```bash
-mysql -h 192.168.0.100 -P 2866 -u dbadmin -p
+mariadb -h 192.168.0.100 -P 2866 -u dbadmin -p --skip-ssl
 ```
 
 비밀번호 입력 프롬프트가 나타나면 `variables.tf`에 설정한 비밀번호(`ChangeMe123!@#`)를 입력합니다.
@@ -3518,7 +3517,7 @@ SKE(Samsung Kubernetes Engine) 클러스터를 생성합니다. `kubernetes_engi
 > - **필수 설정 (`Required`)**:
 >   - `name`: 쿠버네티스 클러스터의 고유 명칭
 >   - `vpc_id` & `subnet_id`: 클러스터가 구축될 네트워크 위치
->   - `kubernetes_version`: 설치할 K8s 버전 (예: `v1.31.8`)
+>   - `kubernetes_version`: 설치할 K8s 버전 (예: `v1.32.8`)
 
 ```bash
 code-server kubernetes_engine.tf
@@ -3528,7 +3527,7 @@ code-server kubernetes_engine.tf
 resource "samsungcloudplatformv2_ske_cluster" "my_cluster" {
   cloud_logging_enabled = false
   service_watch_logging_enabled= false
-  kubernetes_version = "v1.31.8"
+  kubernetes_version = var.kubernetes_version
   name = "${local.name_prefix}k8s${local.environment}"
   security_group_id_list = [samsungcloudplatformv2_security_group_security_group.k8s_sg.id]
   subnet_id = samsungcloudplatformv2_vpc_subnet.k8s_subnet.id
@@ -3577,7 +3576,7 @@ resource "samsungcloudplatformv2_ske_nodepool" "nodepool" {
   max_node_count = 3
   desired_node_count = 1
   keypair_name = samsungcloudplatformv2_virtualserver_keypair.keypair.name
-  kubernetes_version = "v1.31.8"
+  kubernetes_version = var.kubernetes_version
   server_type_id = "s1v2m4"
   volume_type_name = "SSD"
   volume_size = "104"
