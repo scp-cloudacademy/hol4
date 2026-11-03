@@ -317,7 +317,7 @@ VM에 직접 적용되는 가상 방화벽입니다. 더욱 세분화된 접근 
 - 서비스 정보 입력
   - 서버 수: `1`
   - 상품 유형:
-    - 서버타입: `Standard-1/s1v1m2(vCPU 1 | Memory 2G)`
+    - 서버타입: `Standard-2/s2v1m2(vCPU 1 | Memory 2G)`
   - Block Storage:
     - 타입: `SSD_Provisioned`
     - 기본 OS: `6 Units`
@@ -611,7 +611,7 @@ mkdir -p ~/.scpconf
 ##### config.json 파일 생성
 
 - `~/.scpconf/config.json` 파일을 생성하고 SCP 플랫폼의 인증 URL과 기본 리전 정보를 설정합니다.
-- 이 실습에서는 `KR-WEST1` 리전을 사용합니다.
+- 이 실습에서는 `KR-EAST1` 리전을 사용합니다.
 
 ```bash
 code-server ~/.scpconf/config.json
@@ -620,7 +620,7 @@ code-server ~/.scpconf/config.json
 ```json
 {
     "auth-url": "https://iam.e.samsungsdscloud.com/v1",
-    "default-region": "kr-west1"
+    "default-region": "kr-east1"
 }
 ```
 
@@ -680,7 +680,7 @@ SCP-cli는 삼성 클라우드 플랫폼을 CLI 환경에서 관리하기 위한
         "auth_url": "https://iam.e.samsungsdscloud.com/v1/endpoints",
         "access_key": "본인의_Access_Key",
         "access_secret_key": "본인의_Secret_Key",
-        "default_scp_region": "kr-west1"
+        "default_scp_region": "kr-east1"
     }
     ```
 
@@ -692,7 +692,7 @@ SCP-cli는 삼성 클라우드 플랫폼을 CLI 환경에서 관리하기 위한
     | `auth_url` | SCP API 인증 엔드포인트 URL | 환경별 URL 참조 |
     | `access_key` | 개인 API 인증 Access Key | `xxxxxxxxxxxxxx` |
     | `access_secret_key`| 개인 API 인증 Secret Key | `xxxxxxxxxxxxxx` |
-    | `default_scp_region`| CLI 명령이 기본 실행될 리전 | `kr-west1` |
+    | `default_scp_region`| CLI 명령이 기본 실행될 리전 | `kr-east1` |
 
 *   **환경별 인증 URL (`auth_url`) 예시:**
     | 환경 구분 | URL 값 |
@@ -967,7 +967,7 @@ graph TD
 ##### **2. 조건식 (Conditional Expressions)**
 * **형식**: `(조건문 ? 참일_때_값 : 거짓일_때_값)` (3항 연산자 구조)
 * **목적**: 인프라 환경(Dev/Prod)에 따라 사양(Spec)을 조절하거나, 리소스 생성 여부를 결정하기 위해 사용합니다.
-* **예시**: `server_type_id = var.is_prod ? "s1v2m4" : "s1v1m2"`
+* **예시**: `server_type_id = var.is_prod ? "s2v2m4" : "s2v1m2"`
 
 ##### **3. 내장 함수 (Built-in Functions)**
 Terraform은 별도의 스크립트 작성 없이 데이터를 연산할 수 있도록 수많은 내장 함수를 기본 제공합니다.
@@ -1977,7 +1977,28 @@ code-server variables.tf
 ```
 
 ```hcl
+# 리전 설정
+variable "region" {
+  description = "배포할 리전 (kr-west1 또는 kr-east1)"
+  type        = string
+  default     = "kr-east1"
+
+  validation {
+    condition     = contains(["kr-west1", "kr-east1"], var.region)
+    error_message = "유효한 리전은 'kr-west1' 또는 'kr-east1' 이어야 합니다."
+  }
+}
+
 # 인터넷 게이트웨이 설정
+variable "zones" {
+  description = "리전별 가용영역(Zone) 매핑"
+  type        = map(string)
+  default = {
+    kr-west1 = "kr-west1-b"
+    kr-east1 = "kr-east1-a"
+  }
+}
+
 variable "igw_type" {
   type = string
   default = "IGW"
@@ -2025,6 +2046,15 @@ variable "kubernetes_version" {
   type        = string
   default     = "v1.32.8"
 }
+
+# 노드풀 인스턴스 타입
+variable "node_pool_server_type" {
+  description = "SKE 노드풀 인스턴스 타입 ID"
+  type        = string
+  default     = "s2v2m4"
+}
+
+
 ```
 
 **코드 설명:**
@@ -3019,10 +3049,22 @@ code-server variables.tf
 
 ```hcl
 # Bastion Host (Virtual Server) 설정
+variable "bastion_image_ids" {
+  description = "리전별 Bastion Host 이미지 ID 매핑"
+  type        = map(string)
+  default = {
+    kr-west1 = "b8cd519a-c8ce-4a51-ac8d-aab9888339bc"
+    kr-east1 = "a2a66ac2-f745-41dc-a43f-52f402cab557"
+  }
+}
+
 variable "bastion_server_type" {
   description = "Bastion Host 인스턴스 타입"
-  type        = string
-  default     = "s1v1m2"
+  type        = map(string)
+  default     = {
+    kr-west1 = "s1v1m2"
+    kr-east1 = "s2v1m2"
+  }
 }
 
 variable "bastion_disk_size" {
@@ -3057,7 +3099,7 @@ code-server virtualserver.tf
 >   - `image_id`: 서버에 설치할 운영체제 이미지 ID
 >   - `vpc_id` & `subnet_id`: 서버가 위치할 네트워크 정보
 >   - `security_group_ids`: 적용할 보안 그룹 ID 리스트
->   - `server_type`: 서버 인스턴스 사양 (예: `s1v1m2`)
+>   - `server_type`: 서버 인스턴스 사양 (예: `s2v1m2`)
 >   - `keypair_id`: 접속에 사용할 SSH 키페어 ID
 
 ```hcl
@@ -3072,8 +3114,8 @@ resource "samsungcloudplatformv2_virtualserver_server" "bastion" {
   # subnet_id           = samsungcloudplatformv2_vpc_subnet.lb_subnet.id
   security_groups = [samsungcloudplatformv2_security_group_security_group.bastion_sg.id]
   
-  image_id = "b8cd519a-c8ce-4a51-ac8d-aab9888339bc"
-  server_type_id = var.bastion_server_type
+  image_id = var.bastion_image_ids[var.region]
+  server_type_id = var.bastion_server_type[var.region]
   
   # 스토리지 설정
   boot_volume = {
@@ -3105,7 +3147,7 @@ resource "samsungcloudplatformv2_virtualserver_server" "bastion" {
   )
 
   # 5.0.0 대응
-  zone = "kr-west1-b"
+  zone = var.zones[var.region]
 }
 ```
 
@@ -3119,8 +3161,12 @@ resource "samsungcloudplatformv2_virtualserver_server" "bastion" {
    - **`security_groups`**: Bastion Host 전용 보안 그룹인 `bastion_sg` 리소스의 ID를 배열 형태로 바인딩합니다. 이를 통해 외부 IP로부터의 특정 포트(예: SSH 22번 포트) 접근 제어 규칙을 가상 서버에 적용합니다.
 
 3. **운영체제 이미지 및 서버 사양 (`image_id`, `server_type_id`)**:
-   - **`server_type_id`**: 서버의 스펙(CPU, Memory 등)을 정의하는 서버 타입 ID입니다. 변수(`bastion_server_type`, 기본값 `s1v1m2`)를 통해 외부에서 사양을 유연하게 조절할 수 있도록 설계했습니다.
-   - **`image_id`**: Bastion Host로 사용할 운영체제인 Ubuntu 24.04의 이미지 고유 ID(`b8cd519a-c8ce-4a51-ac8d-aab9888339bc`)를 지정합니다. 
+   - **`server_type_id`**: 서버의 스펙(CPU, Memory 등)을 정의하는 서버 타입 ID입니다. 변수(`bastion_server_type`, (서부)`s1v1m2`, (동부)`s2v1m2`)를 통해 외부에서 사양을 유연하게 조절할 수 있도록 설계했습니다.
+   - **`image_id`**: Bastion Host로 사용할 운영체제인 Ubuntu 24.04의 이미지 고유 ID를 지정합니다. 
+     ```
+     서부일경우 (`b8cd519a-c8ce-4a51-ac8d-aab9888339bc`)
+     동부일경우 (`a2a66ac2-f745-41dc-a43f-52f402cab557`)
+     ```
      아래 명령어로 사용 가능한 이미지 목록을 확인할 수 있습니다.
      ```bash
      scp-cli virtualserver image list
@@ -3498,7 +3544,7 @@ resource "samsungcloudplatformv2_filestorage_volume" "k8s_file_storage" {
   tags = local.common_tags
 
   # 5.0.0 대응
-  zone = "kr-west1-b"
+  zone = var.zones[var.region]
 }
 ```
 
@@ -3557,7 +3603,7 @@ SKE(Samsung Kubernetes Engine) 클러스터의 노드 풀을 생성합니다. `k
 > - **필수 설정 (`Required`)**:
 >   - `name`: 노드 풀의 고유 명칭
 >   - `cluster_id`: 노드 풀이 소속될 SKE 클러스터 ID
->   - `server_type_id`: 노드 인스턴스 사양 (예: `s1v2m4`)
+>   - `server_type_id`: 노드 인스턴스 사양 (예: `s2v2m4`)
 >   - `min_node_count` & `max_node_count`: 오토스케일링 시 노드 최소/최대 개수
 
 ```bash
@@ -3577,12 +3623,12 @@ resource "samsungcloudplatformv2_ske_nodepool" "nodepool" {
   desired_node_count = 1
   keypair_name = samsungcloudplatformv2_virtualserver_keypair.keypair.name
   kubernetes_version = var.kubernetes_version
-  server_type_id = "s1v2m4"
+  server_type_id = var.node_pool_server_type
   volume_type_name = "SSD"
   volume_size = "104"
 
   # 5.0.0 대응
-  zone = "kr-west1-b"
+  zone = var.zones[var.region]
   subnet_id = samsungcloudplatformv2_vpc_subnet.k8s_subnet.id
 }
 ```
